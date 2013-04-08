@@ -1,12 +1,12 @@
 #!/usr/bin/python
 
-from api import api_client
+from api import public_api_client
 
 import datetime
 import time
 import os
 
-ac = api_client()
+ac = public_api_client()
 
 while True:
     ticker = ac.ticker()

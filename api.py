@@ -7,7 +7,7 @@
 
 import requests
 
-class api_client():
+class public_api_client():
     
     def __init__(self, proxydict=None):
         self.proxydict = proxydict
@@ -69,7 +69,7 @@ class api_client():
             r.raise_for_status()
 
 
-class trading():
+class private_api_client():
     def __init__(self, user, password, proxydict=None):
         self.proxydict = proxydict
         self.params = {'user': user, 'password': password}
