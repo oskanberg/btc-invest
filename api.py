@@ -7,6 +7,7 @@
 
 from multiprocessing import Lock
 import requests
+import logging
 import time
 
 class public_api_client():
@@ -21,16 +22,19 @@ class public_api_client():
                 try:
                     return called_function(self, *args)
                 except requests.exceptions.HTTPError, e:
-                    print 'public_api_client:\tHTTP error %s, retrying in 5s' % e
+                    logging.warning('HTTP error %s, retrying in 5s' % e)
+                except requests.exceptions.ConnectionError, e:
+                    logging.warning('Connection error %s, retrying in 5s' % e)
+                finally:
                     time.sleep(5)
         return http_handler
     
     def queue(called_function):
         def queued(self, *args):
-            print 'public_api_client:\tQueuing %s' % called_function
+            logging.debug('Queueing %s' % called_function)
             with self.lock:
                 time.sleep(2)
-            print 'public_api_client:\tCalling %s' % called_function
+            logging.debug('Calling %s' % called_function)
             return called_function(self, *args)
         return queued
 
