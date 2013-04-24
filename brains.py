@@ -47,13 +47,13 @@ class daemon(object):
         logging.info('Disparity ratio: %f:%f' % (self.positive_disparity, self.negative_disparity))
         return price_disparity
 
-    def buy_at_price(price):
+    def buy_at_price(self, price):
         self.committed = True
         self.buy_in_price = price
         logging.debug('Bought in at %f' % self.buy_in_price)
         return True
 
-    def sell_at_price(price):
+    def sell_at_price(self, price):
         margin = (price - (price * self.trade_duty)) - self.buy_in_price
         self.profit += margin
         self.committed = False
@@ -68,12 +68,12 @@ class daemon(object):
                     logging.debug('Funds committed but positive price disparity. Staying put.')
                 else:
                     logging.debug('Selling; not significantly large price disparity.')
-                    sell_price = self.kernel.get_cached_price['bitstamp_api']
+                    sell_price = self.kernel.get_cached_price('bitstamp_api')
                     self.sell_at_price(sell_price)
             else:
                 if price_disparity > 5:
                     # Have to call the API again, probably more accurate
-                    buy_in_price = self.kernel.get_cached_price['bitstamp_api']
+                    buy_in_price = self.kernel.get_cached_price('bitstamp_api')
                     self.buy_at_price(buy_in_price)
                 else:
                     logging.debug('Not buying in yet.')
