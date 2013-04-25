@@ -1,4 +1,3 @@
-
 from multiprocessing import Queue, Process
 import datetime
 import logging
@@ -9,7 +8,7 @@ class daemon(object):
     
     def __init__(self, kernel):
         self.alive = True
-        self.trade_duty = 0.02
+        self.trade_duty = 0.004
         self.kernel = kernel
         self.buy_in_price = 0
         self.committed = False
@@ -49,7 +48,7 @@ class daemon(object):
 
     def buy_at_price(self, price):
         self.committed = True
-        self.buy_in_price = price
+        self.buy_in_price = price + self.trade_duty
         logging.debug('Bought in at %f' % self.buy_in_price)
         return True
 
