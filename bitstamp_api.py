@@ -1,3 +1,5 @@
+#!/bin/false
+
 ##
 # Based on kmadac's client:
 # https://github.com/kmadac/bitstamp-python-client
@@ -8,7 +10,7 @@ import requests
 import logging
 import time
 
-class public_api_client(object):
+class api_client(object):
     
     def __init__(self, proxydict=None, user=None, password=None):
         self.proxydict = proxydict
@@ -16,10 +18,10 @@ class public_api_client(object):
         self.params = {'user': user, 'password': password}
 
     def retry_on_HTTPError(called_function):
-        def http_handler(self, *args):
+        def http_handler(self, *args, **kwargs):
             while True:
                 try:
-                    return called_function(self, *args)
+                    return called_function(self, *args, **kwargs)
                 except requests.exceptions.HTTPError, e:
                     logging.warning('HTTP error %s, retrying in 5s' % e)
                 except requests.exceptions.ConnectionError, e:
@@ -28,13 +30,17 @@ class public_api_client(object):
                     time.sleep(5)
         return http_handler
     
+
+    # A lot of functions are not process safe, and the apis
+    # have rate limits
     def queue(called_function):
-        def queued(self, *args):
+        def queued(self, *args, **kwargs):
             logging.debug('Queueing %s' % called_function)
             with self.lock:
                 time.sleep(2)
-            logging.debug('Calling %s' % called_function)
-            return called_function(self, *args)
+                logging.debug('Calling %s' % called_function)
+                ret = called_function(self, *args, **kwargs)
+            return ret
         return queued
 
     # does not make api call so does not need to be queued
@@ -107,6 +113,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def account_balance(self):
         '''
         Returns dictionary:
@@ -127,6 +135,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def user_transactions(self, timedelta_secs=86400):
         '''
         Returns descending list of transactions. Every transaction (dictionary) contains
@@ -147,6 +157,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def open_orders(self):
         '''
         Returns JSON list of open orders. Each order is represented as dictionary:
@@ -160,6 +172,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def cancel_order(self, order_id):
         '''
         Cancel the order specified by order_id
@@ -176,6 +190,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def buy_limit_order(self, amount, price):
         '''
         Order to buy amount of bitcoins for specified price
@@ -192,6 +208,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def sell_limit_order(self, amount, price):
         '''
         Order to buy amount of bitcoins for specified price
@@ -208,6 +226,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def bitcoin_withdrawal(self, amount, address):
         '''
         Send bitcoins to another bitcoin wallet specified by address
@@ -224,6 +244,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def bitcoin_deposit_address(self):
         '''
         Returns bitcoin deposit address as unicode string
@@ -238,6 +260,8 @@ class public_api_client(object):
         else:
             r.raise_for_status()
 
+    @retry_on_HTTPError
+    @queue
     def withdrawal_requests(self):
         '''
         Returns list of withdrawal requests. Each request is represented as dictionary

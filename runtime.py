@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import logging
-from bitstamp_api import public_api_client as bitstamp_api
+from bitstamp_api import api_client as bitstamp_api
 from mtgox_api import public_api_client as mtgox_api
 from networking import networking_kernel
 from brains import daemon

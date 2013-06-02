@@ -1,3 +1,5 @@
+#!/bin/false
+
 ##
 # Based on kmadac's client:
 # https://github.com/kmadac/bitstamp-python-client

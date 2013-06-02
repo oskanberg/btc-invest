@@ -1,3 +1,4 @@
+#!/bin/false
 
 import time
 import logging
@@ -25,6 +26,9 @@ class networking_kernel(object):
         else:
             self.update_cache()
             return self.api_cache[api_id]['float_value']
+
+    def get_api(self, api_id):
+        return self.apis[api_id]
 
     def update(self):
         while True:
