@@ -2,8 +2,8 @@
 
 from bitstamp_api import api_client as bitstamp_api
 
-user = '55005'
-password = 'PoIoP424242......'
+user = #user
+password = #pass
 
 api = bitstamp_api(user=user, password=password)
 
