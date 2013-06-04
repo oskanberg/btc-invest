@@ -49,7 +49,7 @@ class daemon(object):
         return (price_disparity, bitstamp_price)
 
     def record_trades(self, trade_list):
-        with open('/tmp/trades', 'a+') as f:
+        with open('/var/www/trades.html', 'a+') as f:
             for trade in trades:
                 f.write(trade)
     
