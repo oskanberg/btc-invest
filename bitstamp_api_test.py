@@ -14,16 +14,12 @@ class APITest(object):
         highest = self.api.get_highest_bid()
         assert highest > 50, "NOPE"
 
-    def test_ensure_sold_at_market_price(self):
-        self.api.ensure_sold_at_market_price(0.01)
-
     def test__watch_market_sell_orders(self):
         self.api._watch_market_sell_orders([{'id':123}])
 
     def test_buy_and_sell(self):
         print '#############', self.api.buy_at_market_price_with_limit(0.01, 125)
         print '#############', self.api.ensure_sold_at_market_price(0.01)
-
 
 log_format = '%(funcName)20s %(levelname)10s [%(asctime)s] :: %(message)s'
 logging.basicConfig(format=log_format, level=logging.DEBUG)
