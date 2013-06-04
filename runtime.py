@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import logging
+import getpass
 from bitstamp_api import api_client as bitstamp_api
 from mtgox_api import public_api_client as mtgox_api
 from networking import networking_kernel
@@ -10,7 +11,11 @@ from multiprocessing import Process
 if __name__ == "__main__":
     log_format = '%(funcName)20s %(levelname)10s [%(asctime)s] :: %(message)s'
     logging.basicConfig(format=log_format, level=logging.DEBUG)
-    bitstamp_api = bitstamp_api()
+    
+    user = getpass.getpass(prompt='User:')
+    password = getpass.getpass()
+
+    bitstamp_api = bitstamp_api(user=user, password=password)
     mtgox_api    = mtgox_api()
     apis = {
         'bitstamp_api' : bitstamp_api,

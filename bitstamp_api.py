@@ -16,6 +16,7 @@ class api_client(object):
         self.proxydict = proxydict
         self.lock      = Lock()
         self.params = {'user': user, 'password': password}
+        self._closed_sell_orders = []
 
     def retry_on_HTTPError(called_function):
         def http_handler(self, *args, **kwargs):
@@ -46,6 +47,130 @@ class api_client(object):
     # does not make api call so does not need to be queued
     def get_last_price(self):
         return float(self.ticker()['last'])
+
+    def get_highest_bid(self):
+        order_book = self.order_book(group=True)
+        bid_orders = [ (float(order[0]), float(order[1])) for order in order_book['bids'] ]
+        bid_orders.sort(reverse=True)
+        highest_bid = max([ order[0] for order in bid_orders ])
+        assert bid_orders[0][0] == highest_bid, 'sorting failed?'
+        return bid_orders[0]
+
+    def get_lowest_ask(self):
+        order_book = self.order_book(group=True)
+        ask_orders = [ (float(order[0]), float(order[1])) for order in order_book['asks'] ]
+        ask_orders.sort(reverse=False)
+        lowest_ask = min([ order[0] for order in ask_orders ])
+        assert ask_orders[0][0] == lowest_ask, 'sorting failed?'
+        return ask_orders[0]
+
+    def ensure_sold_at_market_price(self, amount):
+        '''
+        Make sure amount is sold: adjust price if market changes
+        @return the successful order
+        '''
+        logging.debug('Ordering amount: %f at market price' % amount)
+        open_orders = self._open_market_level_sell_orders(amount)
+        return self._watch_market_sell_orders(open_orders)
+
+    def _watch_market_sell_orders(self, open_orders):
+        '''
+        Check that the orders are closed. If not, reopen them at market levels.
+        '''
+        actual_open_orders = self.open_orders()
+
+        amount_to_reopen = 0.0
+        actual_ids = [ order['id'] for order in actual_open_orders ]
+        for order in open_orders:
+            if order['id'] in actual_ids:
+                logging.debug('Order %s still open. Closing.' % order['id'] )
+                if self.cancel_order(order['id']):
+                    amount_to_reopen += float(order['amount'])
+                else:
+                    # must have closed in the meantime
+                    continue
+            else:
+                logging.debug('Order %s has been closed.' % order['id'] )
+                self._closed_sell_orders.append(order)
+        if amount_to_reopen > 0:
+            self.ensure_sold_at_market_price(amount_to_reopen)
+        exchange = self._closed_sell_orders
+        self._closed_sell_orders = []
+        return exchange
+
+    def _open_market_level_sell_orders(self, amount):
+        '''
+        Recursively fulfill the best (highest) bids until amount is ordered
+        @return the open ask_orders (list of dicts)
+        '''
+        highest_bid = self.get_highest_bid()
+        bid_price = highest_bid[0]
+        bid_amount = highest_bid[1]
+        if bid_amount > amount:
+            logging.debug('Complete bid for %f at %f' % (amount, bid_price))
+            order = [ self.sell_limit_order(amount, bid_price) ]
+            return order
+        else:
+            logging.debug('Incomplete bid for %f at %f' % (amount, bid_price))
+            order = [ self.sell_limit_order(bid_amount, bid_price) ]
+            return order.append(self._open_market_level_sell_orders(amount - bid_amount))
+
+    def buy_at_market_price_with_limit(self, amount, limit):
+        '''
+        Buy at the market price, but no more than limit
+        This does mean it will only buy orders that completely
+        fulfil amount
+        @return successful order, None if failed
+        '''
+        open_orders = self._open_market_level_buy_orders_with_limit(amount, limit)
+        if open_orders is False:
+            return False
+        return self._watch_market_buy_orders(open_orders, limit)
+
+    def _open_market_level_buy_orders_with_limit(self, amount, limit):
+        '''
+        Recursively fulfill the best (lowest) asks until amount is ordered
+        @return the open ask_orders (list of dicts)
+        '''
+        lowest_ask = self.get_lowest_ask()
+        ask_price = lowest_ask[0]
+        ask_amount = lowest_ask[1]
+        if ask_price < limit:
+            if ask_amount > amount:
+                logging.debug('Complete ask for %f at %f' % (amount, ask_price))
+                order = [ self.buy_limit_order(amount, ask_price) ]
+                return order
+            else:
+                logging.debug('Incomplete ask for %f at %f' % (amount, ask_price))
+                self._buy_exchange += ask_price
+                # hopefully in the meantime this smaller ask has gone
+                return self._open_market_level_buy_orders_with_limit(amount, limit)
+        else:
+            logging.debug('Ask price %f exceeded limit %f' % (ask_price, limit))
+            return False
+
+    def _watch_market_buy_orders(self, open_orders, limit):
+        '''
+        Check that the orders are closed. If not, reopen them at market levels.
+        Should only ever be one buy order
+        '''
+        actual_open_orders = self.open_orders()
+
+        amount_to_reopen = 0.0
+        actual_ids = [ order['id'] for order in actual_open_orders ]
+        for order in open_orders:
+            if order['id'] in actual_ids:
+                logging.debug('Order %s still open. Closing.' % order['id'] )
+                if self.cancel_order(order['id']):
+                    amount_to_reopen += float(order['amount'])
+                else:
+                    # Must have closed in the meantime
+                    continue
+            else:
+                logging.debug('Order %s has been closed.' % order['id'] )
+                return [ order ]
+        if amount_to_reopen > 0:
+            self.buy_at_market_price_with_limit(amount_to_reopen, limit)
         
     @retry_on_HTTPError
     @queue
@@ -202,7 +327,7 @@ class api_client(object):
         r = requests.post('https://www.bitstamp.net/api/buy/', data=self.params, proxies=self.proxydict)
         if r.status_code == 200:
             if 'error' in r.json():
-                return False, r.json()['error']
+                raise Exception, r.json()['error']
             else:
                 return r.json()
         else:
@@ -220,7 +345,7 @@ class api_client(object):
         r = requests.post('https://www.bitstamp.net/api/sell/', data=self.params, proxies=self.proxydict)
         if r.status_code == 200:
             if 'error' in r.json():
-                return False, r.json()['error']
+                raise Exception, r.json()['error']
             else:
                 return r.json()
         else:
