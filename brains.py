@@ -2,13 +2,26 @@
 
 from multiprocessing import Queue, Process
 import datetime
-import logging
 import time
 import os
+import logging
 
-class daemon(object):
+TRADES_PAGE = '/var/www/trades.html'
+LOG_PAGE = '/var/www/index.html'
+
+class brain(object):
     
     def __init__(self, kernel):
+        log_format = '<pre>%(funcName)20s %(levelname)10s [%(asctime)s] :: %(message)s</pre>'
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format=log_format,
+            filename=LOG_PAGE,
+            filemode='w'
+        )
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
         self.alive = True
         self.trade_duty = 0.004
         self.kernel = kernel
@@ -38,36 +51,34 @@ class daemon(object):
                 mtgox_price = float(result[1])
             elif result[0] == 'bitstamp_api':
                 bitstamp_price = float(result[1])
-        logging.info('Bitstamp price: %f' % bitstamp_price)
-        logging.info('Mtgox price: %f' % mtgox_price)
         price_disparity = mtgox_price - bitstamp_price
         if price_disparity > 0 :
             self.positive_disparity += 1
         else:
             self.negative_disparity += 1
-        logging.info('Disparity ratio: %f:%f' % (self.positive_disparity, self.negative_disparity))
         return (price_disparity, bitstamp_price)
 
     def record_trades(self, trade_list):
-        with open('/var/www/trades.html', 'a+') as f:
+        with open(TRADES_PAGE, 'a+') as f:
             for trade in trades:
                 f.write(trade)
     
     def run(self):
         while self.alive:
             price_disparity, bitstamp_price = self.evaluate_disparity()
-            logging.info('Price disparity: %f' % price_disparity)
+            self.logger.info('price disparity: %f', price_disparity)
             if self.committed:
-                if price_disparity > 1:
-                    logging.debug('Funds committed but positive price disparity. Staying put.')
-                else:
-                    logging.debug('Selling; not significantly large price disparity.')
+                if price_disparity <= 1:
+                    self.logger.debug('price disparity too low - selling')
                     sale = self.kernel.get_api['bitstamp_api'].ensure_sold_at_market_price(1)
                     self.record_trades(sale)
+                else:
+                    self.logger.debug('committed, but suitable positive disparity')
             else:
-                if price_disparity > 5:
+                if price_disparity > 3:
+                    self.logger.log('large price disparity - committing')
                     api = self.kernel.get_api['bitstamp_api']
                     api.buy_at_market_price_with_limit(1, bitstamp_price + (price_disparity - 3))
                 else:
-                    logging.debug('Not buying in yet.')
+                    self.logger.debug('not committed and not committing')
             time.sleep(10)
