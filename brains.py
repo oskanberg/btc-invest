@@ -70,14 +70,14 @@ class brain(object):
             if self.committed:
                 if price_disparity <= 1:
                     self.logger.debug('price disparity too low - selling')
-                    sale = self.kernel.get_api['bitstamp_api'].ensure_sold_at_market_price(1)
+                    sale = self.kernel.get_api('bitstamp_api').ensure_sold_at_market_price(1)
                     self.record_trades(sale)
                 else:
                     self.logger.debug('committed, but suitable positive disparity')
             else:
                 if price_disparity > 3:
                     self.logger.debug('large price disparity - committing')
-                    api = self.kernel.get_api['bitstamp_api']
+                    api = self.kernel.get_api([)'bitstamp_api')
                     api.buy_at_market_price_with_limit(1, bitstamp_price + (price_disparity - 3))
                 else:
                     self.logger.debug('not committed and not committing')
