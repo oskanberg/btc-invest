@@ -142,7 +142,6 @@ class api_client(object):
                 return order
             else:
                 logging.debug('Incomplete ask for %f at %f' % (amount, ask_price))
-                self._buy_exchange += ask_price
                 # hopefully in the meantime this smaller ask has gone
                 return self._open_market_level_buy_orders_with_limit(amount, limit)
         else:
