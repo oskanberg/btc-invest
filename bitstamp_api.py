@@ -137,11 +137,11 @@ class api_client(object):
         ask_amount = lowest_ask[1]
         if ask_price < limit:
             if ask_amount > amount:
-                logging.debug('Complete ask for %f at %f' % (amount, ask_price))
+                logging.debug('Complete ask for %f at %f' % (ask_amount, ask_price))
                 order = [ self.buy_limit_order(amount, ask_price) ]
                 return order
             else:
-                logging.debug('Incomplete ask for %f at %f' % (amount, ask_price))
+                logging.debug('Incomplete ask for %f at %f' % (ask_amount, ask_price))
                 # hopefully in the meantime this smaller ask has gone
                 return self._open_market_level_buy_orders_with_limit(amount, limit)
         else:
