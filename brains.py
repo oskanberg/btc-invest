@@ -61,7 +61,7 @@ class brain(object):
     def record_trades(self, trade_list):
         with open(TRADES_PAGE, 'a+') as f:
             for trade in trade_list:
-                f.write(trade)
+                f.write(str(trade))
     
     def run(self):
         while self.alive:
