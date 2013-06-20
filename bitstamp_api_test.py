@@ -21,6 +21,7 @@ class APITest(object):
         print '#############', self.api.buy_at_market_price_with_limit(0.01, 125)
         print '#############', self.api.ensure_sold_at_market_price(0.01)
 
+
 log_format = '%(funcName)20s %(levelname)10s [%(asctime)s] :: %(message)s'
 logging.basicConfig(format=log_format, level=logging.DEBUG)
 test = APITest()

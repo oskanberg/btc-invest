@@ -70,7 +70,7 @@ class api_client(object):
         @return the successful order
         '''
         logging.debug('Ordering amount: %f at market price' % amount)
-        open_orders = self._open_market_level_sell_orders(amount)
+        open_orders = self._open_market_level_sell_orders(amount, [])
         return self._watch_market_sell_orders(open_orders)
 
     def _watch_market_sell_orders(self, open_orders):
@@ -98,7 +98,7 @@ class api_client(object):
         self._closed_sell_orders = []
         return exchange
 
-    def _open_market_level_sell_orders(self, amount):
+    def _open_market_level_sell_orders(self, amount, placed_orders):
         '''
         Recursively fulfill the best (highest) bids until amount is ordered
         @return the open ask_orders (list of dicts)
@@ -106,14 +106,14 @@ class api_client(object):
         highest_bid = self.get_highest_bid()
         bid_price = highest_bid[0]
         bid_amount = highest_bid[1]
-        if bid_amount > amount:
-            logging.debug('Complete bid for %f at %f' % (amount, bid_price))
-            order = [ self.sell_limit_order(amount, bid_price) ]
-            return order
+        if bid_amount >= amount:
+            logging.debug('Complete bid for %f at %f (want %f)' % (bid_amount, bid_price, amount))
+            placed_orders.append(self.sell_limit_order(amount, bid_price))
+            return placed_orders
         else:
-            logging.debug('Incomplete bid for %f at %f' % (amount, bid_price))
-            order = [ self.sell_limit_order(bid_amount, bid_price) ]
-            return order.append(self._open_market_level_sell_orders(amount - bid_amount))
+            logging.debug('Incomplete bid for %f at %f (want %f)' % (bid_amount, bid_price, amount))
+            placed_orders.append(self.sell_limit_order(bid_amount, bid_price))
+            return self._open_market_level_sell_orders(amount - bid_amount, placed_orders)
 
     def buy_at_market_price_with_limit(self, amount, limit):
         '''
