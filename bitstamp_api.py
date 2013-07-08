@@ -70,7 +70,7 @@ class api_client(object):
         @return the successful order
         '''
         logging.debug('Ordering amount: %f at market price' % amount)
-        open_orders = self._open_market_level_sell_orders(amount, [])
+        open_orders = self._open_market_level_sell_orders(amount)
         return self._watch_market_sell_orders(open_orders)
 
     def _watch_market_sell_orders(self, open_orders):
@@ -98,7 +98,7 @@ class api_client(object):
         self._closed_sell_orders = []
         return exchange
 
-    def _open_market_level_sell_orders(self, amount, placed_orders):
+    def _open_market_level_sell_orders(self, amount):
         '''
         Recursively fulfill the best (highest) bids until amount is ordered
         @return the open ask_orders (list of dicts)
@@ -108,12 +108,29 @@ class api_client(object):
         bid_amount = highest_bid[1]
         if bid_amount >= amount:
             logging.debug('Complete bid for %f at %f (want %f)' % (bid_amount, bid_price, amount))
-            placed_orders.append(self.sell_limit_order(amount, bid_price))
-            return placed_orders
+            order = [ self.sell_limit_order(amount, bid_price) ]
+            return order
         else:
             logging.debug('Incomplete bid for %f at %f (want %f)' % (bid_amount, bid_price, amount))
-            placed_orders.append(self.sell_limit_order(bid_amount, bid_price))
-            return self._open_market_level_sell_orders(amount - bid_amount, placed_orders)
+            # hopefully in the meantime this smaller ask has gone
+            return self._open_market_level_sell_orders(amount)
+
+
+        lowest_ask = self.get_lowest_ask()
+        ask_price = lowest_ask[0]
+        ask_amount = lowest_ask[1]
+        if ask_price < limit:
+            if ask_amount > amount:
+                logging.debug('Complete ask for %f at %f' % (ask_amount, ask_price))
+                order = [ self.buy_limit_order(amount, ask_price) ]
+                return order
+            else:
+                logging.debug('Incomplete ask for %f at %f' % (ask_amount, ask_price))
+                # hopefully in the meantime this smaller ask has gone
+                return self._open_market_level_buy_orders_with_limit(amount, limit)
+        else:
+            logging.debug('Ask price %f exceeded limit %f' % (ask_price, limit))
+            return False
 
     def buy_at_market_price_with_limit(self, amount, limit):
         '''
