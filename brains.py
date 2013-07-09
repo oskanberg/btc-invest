@@ -59,9 +59,12 @@ class brain(object):
         return (price_disparity, bitstamp_price)
 
     def record_trades(self, trade_list):
-        with open(TRADES_PAGE, 'a+') as f:
-            for trade in trade_list:
-                f.write(str(trade))
+        if trade_list:
+            with open(TRADES_PAGE, 'a+') as f:
+                for trade in trade_list:
+                    f.write(str(trade))
+        else:
+            self.logger.debug('trade_list was None')
     
     def run(self):
         while self.alive:
